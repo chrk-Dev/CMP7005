@@ -5,3 +5,4 @@ scikit-learn
 lightgbm
 joblib
 xgboost
+streamlit-community-navigation-bar

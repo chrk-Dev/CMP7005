@@ -68,6 +68,103 @@ def show():
     st.markdown("---")
 
     # ==========================================================
+    # TIME-LAPSE MAP
+    # ==========================================================
+    st.markdown("### 🗺️ Time-Lapse Density Map")
+    
+    # Station coordinates mapping
+    station_coords = {
+        "Aotizhongxin":  [39.9822, 116.3971],
+        "Changping":     [40.2207, 116.2312],
+        "Dingling":      [40.2900, 116.2200],
+        "Dongsi":        [39.9290, 116.4170],
+        "Guanyuan":      [39.9290, 116.3390],
+        "Gucheng":       [39.9140, 116.1840],
+        "Huairou":       [40.3280, 116.6280],
+        "Nongzhanguan":  [39.9330, 116.4610],
+        "Shunyi":        [40.1270, 116.6550],
+        "Tiantan":       [39.8860, 116.4070],
+        "Wanliu":        [39.9870, 116.2870],
+        "Wanshouxigong": [39.8780, 116.3520],
+    }
+    
+    # Time aggregation selector
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        agg_level = st.selectbox(
+            "📅 Aggregate time-lapse by",
+            ["Daily", "Weekly", "Monthly"],
+            index=2,
+            key="timelapse_agg"
+        )
+    
+    with col2:
+        map_variable = st.selectbox(
+            "🎨 Variable to display",
+            ["AQI_recalc", "PM2.5", "PM10", "SO2", "NO2", "CO", "O3", "TEMP", "PRES", "DEWP", "RAIN"],
+            index=0,
+            key="map_variable"
+        )
+    
+    # Prepare data for time-lapse map
+    df_map = df.copy()
+    df_map["lat"] = df_map[location_col].map(lambda x: station_coords.get(x, [0, 0])[0])
+    df_map["lon"] = df_map[location_col].map(lambda x: station_coords.get(x, [0, 0])[1])
+    
+    if agg_level == "Daily":
+        df_map["time_key"] = df_map["Date"].dt.strftime("%Y-%m-%d")
+    elif agg_level == "Weekly":
+        df_map["time_key"] = df_map["Date"].dt.to_period("W").astype(str)
+    else:
+        df_map["time_key"] = df_map["Date"].dt.strftime("%Y-%m")
+    
+    # Aggregate data
+    agg_map_df = (
+        df_map.groupby(["time_key", location_col, "lat", "lon"], as_index=False)[map_variable]
+        .mean()
+        .dropna(subset=[map_variable])
+    )
+    agg_map_df = agg_map_df.sort_values("time_key")
+    
+    # Display stats
+    st.caption(
+        f"🎬 {agg_map_df['time_key'].nunique()} frames · "
+        f"{len(agg_map_df)} data points · "
+        f"{agg_map_df[location_col].nunique()} stations"
+    )
+    
+    # Create animated scatter map
+    fig_map = px.scatter_map(
+        agg_map_df,
+        lat="lat",
+        lon="lon",
+        color=location_col,
+        size=map_variable,
+        animation_frame="time_key",
+        hover_name=location_col,
+        hover_data={map_variable: ":.1f", "lat": False, "lon": False},
+        zoom=9,
+        map_style="open-street-map",
+        size_max=50,
+        opacity=0.85,
+    )
+    
+    fig_map.update_layout(
+        height=550,
+        legend=dict(
+            title=location_col,
+            bgcolor="rgba(255,255,255,0.9)",
+            x=0.01,
+            y=0.99
+        )
+    )
+    
+    st.plotly_chart(fig_map, use_container_width=True)
+    
+    st.markdown("---")
+
+    # ==========================================================
     # MONTHLY AQI TREND
     # ==========================================================
     st.markdown("### 📉 Monthly AQI Trend")
