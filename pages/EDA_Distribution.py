@@ -22,9 +22,9 @@ def show():
     df["Month"] = df["Date"].dt.month
     df["Season"] = df["Month"].map({
         12: "Winter", 1: "Winter", 2: "Winter",
-        3: "Summer", 4: "Summer", 5: "Summer",
-        6: "Monsoon", 7: "Monsoon", 8: "Monsoon",
-        9: "Post-Monsoon", 10: "Post-Monsoon", 11: "Post-Monsoon"
+        3: "Spring", 4: "Spring", 5: "Spring",
+        6: "Summer", 7: "Summer", 8: "Summer",
+        9: "Autumn", 10: "Autumn", 11: "Autumn"
     })
 
     pollutants = get_pollutant_columns(df)

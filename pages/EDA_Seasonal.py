@@ -51,12 +51,12 @@ def show():
     df["Month"] = df["Date"].dt.month
     df["Month_Name"] = df["Date"].dt.strftime("%B")
 
-    # Define seasons (Indian standard)
+    # Define seasons (China standard)
     seasons = {
         "Winter": [12, 1, 2],
-        "Summer": [3, 4, 5],
-        "Monsoon": [6, 7, 8],
-        "Post-Monsoon": [9, 10, 11]
+        "Spring": [3, 4, 5],
+        "Summer": [6, 7, 8],
+        "Autumn": [9, 10, 11]
     }
 
     def get_season(month):
