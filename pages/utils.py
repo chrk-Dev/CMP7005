@@ -1,14 +1,40 @@
+import os
 import pandas as pd
 
 
 DEFAULT_DATASET_PATH = "pages/AQI_cleaned_dataset.csv"
+RAW_DATASET_PATHS = ["Dataset/combined_raw_data.csv", "../Dataset/combined_raw_data.csv"]
 
 
 def load_base_dataframe(path: str = DEFAULT_DATASET_PATH) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    # Check if path exists, if not try prepending 'pages/'
+    current_path = path
+    if not os.path.exists(current_path):
+        alt_path = os.path.join("pages", os.path.basename(path))
+        if os.path.exists(alt_path):
+            current_path = alt_path
+            
+    df = pd.read_csv(current_path)
+    
+    # Always ensure clean Date column
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        # Create Date column from components if missing
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
+            
     return df
+
+
+def load_raw_dataframe() -> pd.DataFrame:
+    """Loads the raw dataset if it exists, otherwise falls back to the default dataset."""
+    for path in RAW_DATASET_PATHS:
+        if os.path.exists(path):
+            return load_base_dataframe(path)
+    return load_base_dataframe()
 
 
 def get_location_col(df: pd.DataFrame) -> str:

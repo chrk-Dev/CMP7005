@@ -1,7 +1,7 @@
 import streamlit as st
 import plotly.express as px
 import pandas as pd
-from pages.utils import get_location_col, get_aqi_col, get_pollutant_columns, get_aqi_bucket_col
+from pages.utils import get_location_col, get_aqi_col, get_pollutant_columns, get_aqi_bucket_col, load_base_dataframe
 
 
 def show():
@@ -23,18 +23,37 @@ def show():
         df = st.session_state.original_df
 
     if df is None:
-        st.error("❌ No dataset found. Please upload a dataset or run Data Cleaning.")
-        return
+        try:
+            df = load_base_dataframe()
+            st.session_state.cleaned_df = df
+            st.info("📂 No active dataset found. Loaded the default cleaned dataset.")
+        except Exception as e:
+            st.error(f"❌ No dataset found and failed to load default: {e}")
+            return
 
     # ==========================================================
     # ENSURE REQUIRED COLUMNS EXIST
     # ==========================================================
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
 
     aqi_col = get_aqi_col(df)
     if not aqi_col:
-        st.error("AQI column not found in dataset.")
+        st.error("⚠️ AQI column not found in the current dataset.")
+        col_err1, col_err2 = st.columns([1, 2])
+        with col_err1:
+            if st.button("📂 Load Cleaned Dataset"):
+                st.session_state.cleaned_df = load_base_dataframe()
+                st.rerun()
+        with col_err2:
+            st.info("💡 You can also recalculate AQI on the **Data Cleaning** page after filling missing values.")
         return
+
     location_col = get_location_col(df)
     aqi_bucket_col = get_aqi_bucket_col(df)
 
@@ -56,7 +75,7 @@ def show():
 
     most_polluted_city = f"{city_incidents.idxmax()} ({city_incidents.max()} incidents)" if not city_incidents.empty else "N/A"
     cleanest_city = f"{city_incidents.idxmin()} ({city_incidents.min()} incidents)" if not city_incidents.empty else "N/A"
-    top_pollutant = df[pollutants].mean().idxmax()
+    top_pollutant = df[pollutants].mean().idxmax() if pollutants else "N/A"
 
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("🌫 Avg AQI", f"{avg_aqi:.1f}")
@@ -102,7 +121,7 @@ def show():
     with col2:
         map_variable = st.selectbox(
             "🎨 Variable to display",
-            ["AQI_recalc", "PM2.5", "PM10", "SO2", "NO2", "CO", "O3", "TEMP", "PRES", "DEWP", "RAIN"],
+            [aqi_col] + pollutants + ["TEMP", "PRES", "DEWP", "RAIN"],
             index=0,
             key="map_variable"
         )

@@ -1,181 +1,175 @@
 import streamlit as st
 import pandas as pd
 import io
-from pages.utils import load_base_dataframe, get_location_col, get_aqi_bucket_col
+from pages.utils import load_base_dataframe, get_location_col, get_aqi_bucket_col, load_raw_dataframe
 
 def show():
 
     # ----------------------------
     # Load Dataset (Internal)
     # ----------------------------
-    df = load_base_dataframe()
-    total_rows = df.shape[0]
-    location_col = get_location_col(df)
-    aqi_bucket_col = get_aqi_bucket_col(df)
+    if "info_dataset_source" not in st.session_state:
+        st.session_state.info_dataset_source = "Cleaned"
 
     # ----------------------------
-    # Page Styling
+    # Page Styling (Enhanced)
     # ----------------------------
     st.markdown("""
         <style>
-
             .section-header {
-                font-size: 28px !important;
-                font-weight: 700 !important;
-                color: #344767 !important;
-                margin-top: 25px !important;
-                margin-bottom: 10px !important;
+                font-size: 32px !important;
+                font-weight: 800 !important;
+                color: #1a202c !important;
+                margin-top: 10px !important;
+                margin-bottom: 5px !important;
+                letter-spacing: -0.5px;
             }
-
             .sub-header {
-                font-size: 22px !important;
-                font-weight: 600 !important;
-                color: #4A6480 !important;
-                margin-top: 20px !important;
-                margin-bottom: 10px !important;
+                font-size: 20px !important;
+                font-weight: 700 !important;
+                color: #2d3748 !important;
+                margin-top: 25px !important;
+                margin-bottom: 12px !important;
+                border-left: 5px solid #4a90e2;
+                padding-left: 12px;
             }
-
             .pastel-box {
-                background-color: #F7F9FC;
-                padding: 18px;
-                border-radius: 12px;
-                border: 1px solid #E3EAF4;
-                margin-bottom: 20px;
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 16px;
+                border: 1px solid #e2e8f0;
+                margin-bottom: 25px;
                 font-size: 16px;
-                line-height: 1.55;
-                color: #3A4A66;
+                color: #4a5568;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             }
-
-            .info-text {
-                font-family: monospace;
-                font-size: 15px;
-                white-space: pre-wrap;
+            /* Radio button styling */
+            div[role="radiogroup"] {
+                gap: 10px;
             }
-
-            /* ---------------- RADIO BUTTON STYLING ---------------- */
-
-            div[role="radiogroup"] > label {
-                border: 1px solid #E3EAF4;
-                padding: 10px 14px;
-                margin: 5px 0;
-                border-radius: 10px;
-                background-color: white;
-                transition: 0.2s ease;
-                font-size: 16px;
-                color: #3A4A66;
-            }
-
-            div[role="radiogroup"] > label:hover {
-                background-color: #f0f4fa;
-                border-color: #cfd8e3;
-            }
-
-            div[role="radiogroup"] > label[aria-checked="true"] {
-                background-color: #d8e8ff !important;
-                border-color: #a7c4ff !important;
-                color: #2a3a55 !important;
-                font-weight: 600 !important;
-            }
-
         </style>
     """, unsafe_allow_html=True)
 
     # ----------------------------
-    # Title
+    # Header & Source Selection
     # ----------------------------
-    st.markdown("<div class='section-header'>📘 Dataset Information</div>", unsafe_allow_html=True)
+    col_h1, col_h2 = st.columns([2, 1])
+    with col_h1:
+        st.markdown("<div class='section-header'>📘 Dataset Insights</div>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#718096; font-size:18px;'>Explore the structure and health of your data.</p>", unsafe_allow_html=True)
+    with col_h2:
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+        source_opt = st.radio("Dataset Source:", ["Cleaned", "Raw"], horizontal=True, index=0 if st.session_state.info_dataset_source == "Cleaned" else 1)
+        if source_opt != st.session_state.info_dataset_source:
+            st.session_state.info_dataset_source = source_opt
+            st.rerun()
 
-    # ----------------------------
-    # Dataset Description
-    # ----------------------------
-    st.markdown("""
-    <div class="pastel-box">
-        This page provides a high-level overview of the dataset used for AQI analysis.
-        You can explore the top/bottom rows, dataset structure, column data types, and
-        basic descriptive statistics.  
-        <br><br>
-        Detailed cleaning and preprocessing will be performed in the Data Cleaning page.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ===============================================================
-    # 🔍 VIEW ROWS BLOCK (SIDE-BY-SIDE)
-    # ===============================================================
-    st.markdown("<div class='sub-header'>🔍 View Dataset Rows</div>", unsafe_allow_html=True)
-    
-    colA, colB = st.columns(2)
-    
-    with colA:
-        st.markdown("### ▶️ First Rows")
-        num_rows_first = st.number_input(
-            "Rows to display (first):", min_value=1, max_value=total_rows, value=5
-        )
-        st.dataframe(df.head(num_rows_first), use_container_width=True)
-    
-    with colB:
-        st.markdown("### ◀️ Last Rows")
-        num_rows_last = st.number_input(
-            "Rows to display (last):", min_value=1, max_value=total_rows, value=5
-        )
-        st.dataframe(df.tail(num_rows_last), use_container_width=True)
-
-    # ===============================================================
-    # 🔎 UNIQUE VALUES CHECKER FOR CATEGORICAL COLUMNS
-    # ===============================================================
-    st.markdown("<div class='sub-header'>🔎 Check Unique Values of Categorical Columns</div>", unsafe_allow_html=True)
-    
-    # Identify categorical columns automatically
-    cat_cols = [location_col, aqi_bucket_col]
-    cat_cols = [col for col in cat_cols if col in df.columns]
-    
-    if len(cat_cols) > 0:
-        selected_cat = st.selectbox("Select a categorical column:", cat_cols)
-        st.markdown(f"<div class='pastel-box'><b>Unique Values in {selected_cat}:</b><br>{df[selected_cat].unique()}</div>", unsafe_allow_html=True)
+    if st.session_state.info_dataset_source == "Raw":
+        df = load_raw_dataframe()
+        source_label = "🔴 Raw Data"
     else:
-        st.info("No categorical columns found in the dataset.")
+        df = load_base_dataframe()
+        source_label = "🟢 Cleaned Data"
+
+    total_rows = df.shape[0]
+    total_cols = df.shape[1]
+    location_col = get_location_col(df)
+    aqi_bucket_col = get_aqi_bucket_col(df)
 
     # ----------------------------
-    # Dataset Structure
+    # KPI Section
     # ----------------------------
-    st.markdown("<div class='sub-header'>📄 Dataset Structure</div>", unsafe_allow_html=True)
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    with kpi1:
+        st.metric("Total Observations", f"{total_rows:,}")
+    with kpi2:
+        st.metric("Feature Count", total_cols)
+    with kpi3:
+        missing_total = df.isnull().sum().sum()
+        missing_pct = (missing_total / (total_rows * total_cols)) * 100 if total_rows > 0 else 0
+        st.metric("Total Missing Cells", f"{missing_total:,}", delta=f"{missing_pct:.1f}%", delta_color="inverse")
+    with kpi4:
+        st.metric("Dataset Source", source_label)
 
-    st.markdown(f"""
-    <div class='pastel-box'>
-        🔹 <b>Total Rows:</b> {df.shape[0]} <br>
-        🔹 <b>Total Columns:</b> {df.shape[1]} <br>
-        🔹 <b>Column Names:</b> {', '.join(df.columns)}
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ----------------------------
-    # Data Types
-    # ----------------------------
-    st.markdown("<div class='sub-header'>🔠 Column Data Types</div>", unsafe_allow_html=True)
-
-    dtype_df = (
-        pd.DataFrame(df.dtypes, columns=["Data Type"])
-        .reset_index()
-        .rename(columns={"index": "Column"})
-    )
-    st.dataframe(dtype_df, use_container_width=True)
+    st.markdown("---")
 
     # ----------------------------
-    # df.info()
+    # Tabs for Organization
     # ----------------------------
-    st.markdown("<div class='sub-header'>🧠 Dataset Info (df.info)</div>", unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["📋 Overview & Structure", "🔍 Data Preview", "📊 Statistical Summary"])
 
-    buffer = io.StringIO()
-    df.info(buf=buffer)
-    info_str = buffer.getvalue()
+    with tab1:
+        # Dataset Description
+        st.markdown("<div class='sub-header'>📝 About this Dataset</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="pastel-box">
+            This view is currently showing the <b>{st.session_state.info_dataset_source}</b> dataset.
+            The data contains information about pollutants (PM2.5, PM10, etc.) collected across various stations/cities.
+            Use this page to verify column types and general distributions before moving to analysis.
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown(f"<div class='pastel-box info-text'>{info_str}</div>", unsafe_allow_html=True)
+        col_st1, col_st2 = st.columns(2)
+        with col_st1:
+            st.markdown("<div class='sub-header'>📄 Column Data Types</div>", unsafe_allow_html=True)
+            dtype_df = (
+                pd.DataFrame(df.dtypes, columns=["Data Type"])
+                .reset_index()
+                .rename(columns={"index": "Column Name"})
+            )
+            st.dataframe(dtype_df, use_container_width=True, height=400)
 
-    # ===============================================================
-    # 📊 STATISTICAL SUMMARY
-    # ===============================================================
-    st.markdown("<div class='sub-header'>📊 Statistical Summary</div>", unsafe_allow_html=True)
+        with col_st2:
+            st.markdown("<div class='sub-header'>🔎 Categorical Explorer</div>", unsafe_allow_html=True)
+            # Identify categorical columns automatically
+            cat_cols = [location_col, aqi_bucket_col, "AQI_Bucket_recalc", "AQI_Bucket_Recalc", "AQI_Bucket", "wd"]
+            cat_cols = [col for col in cat_cols if col and col in df.columns]
+            cat_cols = list(dict.fromkeys(cat_cols))
+            
+            if cat_cols:
+                selected_cat = st.selectbox("Select column to check unique values:", cat_cols)
+                u_vals = df[selected_cat].dropna().unique()
+                st.info(f"**Found {len(u_vals)} unique values in {selected_cat}:**")
+                st.write(", ".join(map(str, sorted(u_vals))))
+            else:
+                st.info("No categorical columns detected.")
 
-    desc = df.describe()
+        with st.expander("🧠 Detailed Schema Info (df.info)"):
+            buffer = io.StringIO()
+            df.info(buf=buffer)
+            st.code(buffer.getvalue())
 
-    # Streamlit cannot render a pandas Styler object reliably → FIXED
-    st.dataframe(desc, use_container_width=True)
+    with tab2:
+        st.markdown("<div class='sub-header'>🔍 Deep Dive into Rows</div>", unsafe_allow_html=True)
+        
+        row_choice = st.radio("View range:", ["Top Rows", "Bottom Rows", "Random Sample"], horizontal=True)
+        num_rows = st.slider("Select number of rows:", 5, 100, 10)
+        
+        if row_choice == "Top Rows":
+            st.dataframe(df.head(num_rows), use_container_width=True)
+        elif row_choice == "Bottom Rows":
+            st.dataframe(df.tail(num_rows), use_container_width=True)
+        else:
+            st.dataframe(df.sample(num_rows), use_container_width=True)
+
+        st.markdown("<div class='sub-header'>📊 Missingness Snapshot</div>", unsafe_allow_html=True)
+        missing_df = df.isnull().sum().reset_index()
+        missing_df.columns = ["Column", "Missing Count"]
+        missing_df["Missing %"] = (missing_df["Missing Count"] / total_rows) * 100
+        st.dataframe(missing_df.sort_values("Missing Count", ascending=False), use_container_width=True)
+
+    with tab3:
+        st.markdown("<div class='sub-header'>📊 Descriptive Statistics</div>", unsafe_allow_html=True)
+        st.dataframe(df.describe().T, use_container_width=True)
+
+        st.markdown("<div class='sub-header'>📈 Value Counts (Top Categories)</div>", unsafe_allow_html=True)
+        col_vc1, col_vc2 = st.columns(2)
+        with col_vc1:
+            if location_col in df.columns:
+                st.write(f"**Top 10 {location_col}**")
+                st.bar_chart(df[location_col].value_counts().head(10))
+        with col_vc2:
+            bucket_col = aqi_bucket_col if aqi_bucket_col in df.columns else None
+            if bucket_col:
+                st.write(f"**{bucket_col} Distribution**")
+                st.bar_chart(df[bucket_col].value_counts())

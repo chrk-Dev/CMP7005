@@ -45,7 +45,13 @@ def show():
     st.header("🔍 Comparison Tool")
     location_col = get_location_col(df)
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
 
     # ----------------------------------------------------------
     # CLEAN POLLUTANT DETECTION (ONLY pollutants)

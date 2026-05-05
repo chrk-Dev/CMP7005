@@ -46,7 +46,13 @@ def show():
         st.error("Dataset not found.")
         return
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
 
     st.header("📉 Time-Series Analysis (Normalized Option)")
 

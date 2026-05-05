@@ -29,4 +29,3 @@ def show():
 
     st.markdown("---")
 
-    st.success("References updated successfully!")

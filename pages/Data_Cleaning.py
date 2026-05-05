@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pages.utils import load_base_dataframe, get_location_col
+from pages.utils import load_base_dataframe, get_location_col, load_raw_dataframe
 
 
 # ------------------------ CHIP RENDERER --------------------------
@@ -30,7 +30,8 @@ def show():
     # LOAD DATA ONCE
     # --------------------------------------------------------------
     if "original_df" not in st.session_state:
-        df = load_base_dataframe()
+        # Default to raw dataset for cleaning page to show missing values
+        df = load_raw_dataframe()
 
         st.session_state.original_df = df.copy()
         st.session_state.current_df = df.copy()
@@ -39,9 +40,32 @@ def show():
     location_col = get_location_col(df)
 
     # Always ensure clean Date column
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        # Create Date column from components if missing
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
 
     st.title("🧹 Data Cleaning")
+
+    # Dataset selection toggle
+    col_sel1, col_sel2 = st.columns([2, 1])
+    with col_sel1:
+        st.info("💡 **Tip:** By default, this page loads the **Raw Dataset** to allow you to perform cleaning and imputation.")
+    with col_sel2:
+        if st.button("🔄 Switch to Cleaned Dataset"):
+            df_clean = load_base_dataframe()
+            st.session_state.original_df = df_clean.copy()
+            st.session_state.current_df = df_clean.copy()
+            st.rerun()
+        if st.button("📁 Reload Raw Dataset"):
+            df_raw = load_raw_dataframe()
+            st.session_state.original_df = df_raw.copy()
+            st.session_state.current_df = df_raw.copy()
+            st.rerun()
 
     # ==============================================================
     # PART 1 — MISSING VALUES TABLE
@@ -62,12 +86,14 @@ def show():
     # PART 1B — HEATMAP
     # ==============================================================
     with st.expander("📊 Show Missing Values Heatmap"):
-        heatmap_data = df.isnull()
+        sample_n = min(2000, len(df))
+        heatmap_data = df.iloc[:sample_n].isnull().astype(int)
         fig = px.imshow(
             heatmap_data.T,
             color_continuous_scale=["#F28C28", "#AA336A"],
             aspect="auto",
             labels=dict(x="Row", y="Column", color="Missing"),
+            title=f"Missing Values Heatmap (Sampled {sample_n} rows)"
         )
         fig.update_layout(height=400)
         st.plotly_chart(fig, use_container_width=True)
@@ -88,9 +114,15 @@ def show():
         </span>
     """, unsafe_allow_html=True)
 
+    # Exclude essential columns from dropping
+    drop_options = [
+        col for col in df.columns 
+        if col not in ["No", "year", "month", "day", "hour", "Date"]
+    ]
+
     column_to_drop = st.selectbox(
         "",
-        options=df.columns,
+        options=drop_options,
         index=None,
         placeholder="Choose a column to drop"
     )
@@ -168,23 +200,12 @@ def show():
             "Monthly Median"
         ]
 
-        nitrogen_cols = {"NO", "NO2", "NOx", "NO₂", "NOₓ"}
-        if any(c in col_selection for c in nitrogen_cols):
-            imputation_options.append("Fill Using Chemical Formula (NO + NO₂ = NOx)")
 
         method = st.selectbox("Choose imputation method:", imputation_options)
 
         freq_needed = method in ["Mean", "Median", "Mode", "Forward Fill"]
         freq = st.selectbox("Frequency:", ["Monthly", "Yearly"]) if freq_needed else None
 
-        if any(c in col_selection for c in nitrogen_cols):
-            st.info("""
-                💡 **Chemical Tip:**  
-                NOx = NO + NO₂  
-                • NOx = NO + NO₂  
-                • NO = NOx − NO₂  
-                • NO₂ = NOx − NO  
-            """)
 
         # ======================================================
         # APPLY IMPUTATION
@@ -193,7 +214,8 @@ def show():
             if not col_selection:
                 st.warning("⚠️ Select at least one column.")
             else:
-                df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                if "Date" in df.columns:
+                    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
                 before = df[col_selection].isnull().sum().rename("Before")
 
@@ -201,10 +223,18 @@ def show():
                 if method in ["Mean", "Median", "Mode"]:
                     for c in col_selection:
                         group_key = df["Date"].dt.to_period("M") if freq == "Monthly" else df["Date"].dt.year
+                        is_numeric = pd.api.types.is_numeric_dtype(df[c])
+
                         if method == "Mean":
-                            df[c] = df.groupby(group_key)[c].transform(lambda x: x.fillna(x.mean()))
+                            if is_numeric:
+                                df[c] = df.groupby(group_key)[c].transform(lambda x: x.fillna(x.mean()))
+                            else:
+                                st.warning(f"⚠️ Column '{c}' is not numeric. Skipping Mean.")
                         elif method == "Median":
-                            df[c] = df.groupby(group_key)[c].transform(lambda x: x.fillna(x.median()))
+                            if is_numeric:
+                                df[c] = df.groupby(group_key)[c].transform(lambda x: x.fillna(x.median()))
+                            else:
+                                st.warning(f"⚠️ Column '{c}' is not numeric. Skipping Median.")
                         elif method == "Mode":
                             df[c] = df.groupby(group_key)[c].transform(
                                 lambda x: x.fillna(x.mode().iloc[0] if not x.mode().empty else x)
@@ -218,31 +248,44 @@ def show():
                 elif method == "Interpolate (City + Date)":
                     df = df.sort_values([location_col, "Date"]).reset_index(drop=True)
                     for c in col_selection:
-                        df[c] = df.groupby(location_col)[c].transform(lambda x: x.interpolate())
+                        if pd.api.types.is_numeric_dtype(df[c]):
+                            df[c] = df.groupby(location_col)[c].transform(lambda x: x.interpolate())
+                        else:
+                            st.warning(f"⚠️ Column '{c}' is not numeric. Skipping Interpolate.")
 
                 elif method == "Interpolate (Date)":
                     df = df.sort_values("Date")
                     for c in col_selection:
-                        df[c] = df[c].interpolate()
+                        if pd.api.types.is_numeric_dtype(df[c]):
+                            df[c] = df[c].interpolate()
+                        else:
+                            st.warning(f"⚠️ Column '{c}' is not numeric. Skipping Interpolate.")
 
                 elif method == "Monthly Median":
                     monthly_key = df["Date"].dt.to_period("M")
                     for c in col_selection:
-                        df[c] = df.groupby(monthly_key)[c].transform(lambda x: x.fillna(x.median()))
+                        if pd.api.types.is_numeric_dtype(df[c]):
+                            df[c] = df.groupby(monthly_key)[c].transform(lambda x: x.fillna(x.median()))
+                        else:
+                            st.warning(f"⚠️ Column '{c}' is not numeric. Skipping Monthly Median.")
 
                 elif method == "Fill Using Chemical Formula (NO + NO₂ = NOx)":
                     rename_map = {"NO₂": "NO2", "NOₓ": "NOx", "NOX": "NOx"}
                     df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
 
                     if {"NO", "NO2", "NOx"}.issubset(df.columns):
-                        mask = df["NOx"].isnull() & df["NO"].notnull() & df["NO2"].notnull()
-                        df.loc[mask, "NOx"] = df.loc[mask, "NO"] + df.loc[mask, "NO2"]
+                        # Ensure all three are numeric before calculating
+                        if all(pd.api.types.is_numeric_dtype(df[col]) for col in ["NO", "NO2", "NOx"]):
+                            mask = df["NOx"].isnull() & df["NO"].notnull() & df["NO2"].notnull()
+                            df.loc[mask, "NOx"] = df.loc[mask, "NO"] + df.loc[mask, "NO2"]
 
-                        mask = df["NO"].isnull() & df["NOx"].notnull() & df["NO2"].notnull()
-                        df.loc[mask, "NO"] = df.loc[mask, "NOx"] - df.loc[mask, "NO2"]
+                            mask = df["NO"].isnull() & df["NOx"].notnull() & df["NO2"].notnull()
+                            df.loc[mask, "NO"] = df.loc[mask, "NOx"] - df.loc[mask, "NO2"]
 
-                        mask = df["NO2"].isnull() & df["NOx"].notnull() & df["NO"].notnull()
-                        df.loc[mask, "NO2"] = df.loc[mask, "NOx"] - df.loc[mask, "NO"]
+                            mask = df["NO2"].isnull() & df["NOx"].notnull() & df["NO"].notnull()
+                            df.loc[mask, "NO2"] = df.loc[mask, "NOx"] - df.loc[mask, "NO"]
+                        else:
+                            st.warning("⚠️ One or more NO/NO2/NOx columns are not numeric. Skipping Chemical Formula fill.")
 
                 # ---------- RESULTS ----------
                 after = df[col_selection].isnull().sum().rename("After")
@@ -337,7 +380,8 @@ def show():
     # ==============================================================
     st.subheader("📆 Create Date-Based Columns (Optional)")
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
     date_options = st.multiselect(
         "Select fields to create:",

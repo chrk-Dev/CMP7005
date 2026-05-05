@@ -51,7 +51,14 @@ def show():
 
     st.header("📦 AQI Category Analysis")
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
+
     location_col = get_location_col(df)
     aqi_col = get_aqi_col(df)
     recalc_col = "AQI_recalc" if "AQI_recalc" in df.columns else "AQI_Recalc"

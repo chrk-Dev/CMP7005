@@ -5,7 +5,7 @@ import math
 
 # Format: (C_low, C_high, I_low, I_high)
 # Units: mg/m3 for CO, μg/m3 for others
-AQI_BREAKPOINTS_CHINA = {
+AQI_BREAKPOINTS = {
     "PM2.5": [
         (0, 35, 0, 50),      # Excellent
         (36, 75, 51, 100),   # Good

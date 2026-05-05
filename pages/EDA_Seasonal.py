@@ -47,7 +47,14 @@ def show():
     st.header("🍂 Seasonal Patterns Analysis")
     location_col = get_location_col(df)
 
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    elif all(col in df.columns for col in ["year", "month", "day"]):
+        if "hour" in df.columns:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day", "hour"]])
+        else:
+            df["Date"] = pd.to_datetime(df[["year", "month", "day"]])
+
     df["Month"] = df["Date"].dt.month
     df["Month_Name"] = df["Date"].dt.strftime("%B")
 
