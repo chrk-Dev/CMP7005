@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pages.utils import load_base_dataframe, get_location_col, load_raw_dataframe
+from app_pages.utils import load_base_dataframe, get_location_col, load_raw_dataframe
 
 
 # ------------------------ CHIP RENDERER --------------------------
@@ -450,3 +450,4 @@ def show():
 
         st.success("🔄 All changes have been reset! Dataset restored to original state.")
         st.rerun()
+

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pages.utils import get_location_col
+from app_pages.utils import get_location_col
 
 # ----------------------------------------------------------
 # Pastel CSS
@@ -178,3 +178,4 @@ def show():
         file_name="pollutant_correlation_matrix.csv",
         mime="text/csv"
     )
+

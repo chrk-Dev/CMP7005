@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pages.utils import get_location_col
+from app_pages.utils import get_location_col
 
 # ----------------------------------------------------------
 # PASTEL CSS
@@ -230,3 +230,4 @@ def show():
     # ----------------------------------------------------------
     with st.expander("📄 View Filtered Data"):
         st.dataframe(filtered_df, use_container_width=True)
+

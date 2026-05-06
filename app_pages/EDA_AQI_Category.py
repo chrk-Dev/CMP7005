@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pages.utils import get_location_col, get_aqi_col
+from app_pages.utils import get_location_col, get_aqi_col
 
 
 # ----------------------------------------------------------
@@ -258,3 +258,4 @@ def show():
     st.markdown('<div class="plot-container">', unsafe_allow_html=True)
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
+

@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sklearn.preprocessing import LabelEncoder
-from pages.utils import get_location_col
+from app_pages.utils import get_location_col
 
 
 def show():
@@ -127,3 +127,4 @@ def show():
     )
 
     st.plotly_chart(fig, use_container_width=True)
+

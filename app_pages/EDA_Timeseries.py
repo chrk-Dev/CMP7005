@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pages.utils import get_location_col
+from app_pages.utils import get_location_col
 
 # ------------------------------------------
 # Darker Professional Colors
@@ -219,3 +219,4 @@ def show():
     st.markdown("### 📌 Summary Statistics")
     summary = df.groupby(location_col)[pollutants].describe()
     st.dataframe(summary, use_container_width=True)
+

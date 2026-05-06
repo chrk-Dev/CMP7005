@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from pages.utils import get_location_col, get_aqi_col, get_aqi_bucket_col, get_pollutant_columns
+from app_pages.utils import get_location_col, get_aqi_col, get_aqi_bucket_col, get_pollutant_columns
 
 
 def show():
@@ -143,3 +143,4 @@ def show():
     )
     
     st.plotly_chart(fig_relation, use_container_width=True)
+

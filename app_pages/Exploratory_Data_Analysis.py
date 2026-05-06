@@ -1,7 +1,7 @@
 import streamlit as st
 import plotly.express as px
 import pandas as pd
-from pages.utils import get_location_col, get_aqi_col, get_pollutant_columns, get_aqi_bucket_col, load_base_dataframe
+from app_pages.utils import get_location_col, get_aqi_col, get_pollutant_columns, get_aqi_bucket_col, load_base_dataframe
 
 
 def show():
@@ -330,26 +330,27 @@ def show():
     mode = st.session_state.eda_mode
     
     if mode == "Distribution Analysis":
-        import pages.EDA_Distribution as pg
+        import app_pages.EDA_Distribution as pg
         pg.show()
     
     elif mode == "Time-Series Analysis":
-        import pages.EDA_Timeseries as pg
+        import app_pages.EDA_Timeseries as pg
         pg.show()
     
     elif mode == "Correlation Matrix":
-        import pages.EDA_Correlation as pg
+        import app_pages.EDA_Correlation as pg
         pg.show()
     
     elif mode == "AQI Category Analysis":
-        import pages.EDA_AQI_Category as pg
+        import app_pages.EDA_AQI_Category as pg
         pg.show()
     
     elif mode == "Seasonal Patterns":
-        import pages.EDA_Seasonal as pg
+        import app_pages.EDA_Seasonal as pg
         pg.show()
     
     elif mode == "Comparison Tool":
-        import pages.EDA_Comparison as pg
+        import app_pages.EDA_Comparison as pg
         pg.show()
     
+

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
-from pages.utils import load_base_dataframe, get_location_col, get_aqi_bucket_col, load_raw_dataframe
+from app_pages.utils import load_base_dataframe, get_location_col, get_aqi_bucket_col, load_raw_dataframe
 
 def show():
 
@@ -173,3 +173,4 @@ def show():
             if bucket_col:
                 st.write(f"**{bucket_col} Distribution**")
                 st.bar_chart(df[bucket_col].value_counts())
+
