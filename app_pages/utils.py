@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 
-DEFAULT_DATASET_PATH = "pages/AQI_cleaned_dataset.csv"
+DEFAULT_DATASET_PATH = "app_pages/AQI_cleaned_dataset.csv"
 RAW_DATASET_PATHS = ["Dataset/combined_raw_data.csv", "../Dataset/combined_raw_data.csv"]
 
 
