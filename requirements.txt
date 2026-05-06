@@ -1,7 +1,7 @@
 streamlit
-pandas==2.2.1
-numpy==1.26.4
-plotly==5.18.0
+pandas
+numpy
+plotly
 scikit-learn
 lightgbm
 joblib
